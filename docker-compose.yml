@@ -1,0 +1,38 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: document-chat-backend
+    env_file:
+      - ./backend/.env
+    environment:
+      # Overridable by .env, but set here as a sane default so the stack
+      # works even if .env doesn't define it.
+      - EMBEDDING_DEVICE=cpu
+    volumes:
+      # Persists uploads, the FAISS index, and document metadata across
+      # container restarts/rebuilds.
+      - backend-data:/app/data
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: document-chat-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+
+volumes:
+  backend-data:
